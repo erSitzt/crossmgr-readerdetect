@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <RootNamespace>ReaderDetect.Cli</RootNamespace>
+    <AssemblyName>readerdetect</AssemblyName>
+    <!-- NuGet keys the restore graph by PackageId (default: AssemblyName), which would
+         collide case-insensitively with the ReaderDetect library. -->
+    <PackageId>ReaderDetect.Cli</PackageId>
+    <RollForward>Major</RollForward>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../ReaderDetect/ReaderDetect.csproj" />
+    <ProjectReference Include="../ReaderDetect.Management/ReaderDetect.Management.csproj" />
+  </ItemGroup>
+
+</Project>

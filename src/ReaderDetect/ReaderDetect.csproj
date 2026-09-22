@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Plain net9.0 on purpose: the timing application is net9.0-windows and
+         references this as a project, so nothing Windows-only may live here. -->
+    <TargetFramework>net9.0</TargetFramework>
+    <RootNamespace>ReaderDetect</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The classifier and candidate bookkeeping are internal; the tests drive
+         them directly with canned evidence. -->
+    <InternalsVisibleTo Include="ReaderDetect.Tests" />
+  </ItemGroup>
+
+</Project>

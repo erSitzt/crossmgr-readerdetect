@@ -1,0 +1,11 @@
+{
+  "solution": {
+    "path": "crossmgr-readerdetect.sln",
+    "projects": [
+      "src\\ReaderDetect\\ReaderDetect.csproj",
+      "src\\ReaderDetect.Management\\ReaderDetect.Management.csproj",
+      "src\\ReaderDetect.Cli\\ReaderDetect.Cli.csproj",
+      "tests\\ReaderDetect.Tests\\ReaderDetect.Tests.csproj"
+    ]
+  }
+}
