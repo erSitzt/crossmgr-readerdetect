@@ -7,6 +7,7 @@ using ReaderDetect.Mdns;
 using ReaderDetect.Network;
 using ReaderDetect.Scanning;
 using ReaderDetect.Vendors;
+using ReaderDetect.WsDiscovery;
 
 namespace ReaderDetect;
 
@@ -104,6 +105,20 @@ public sealed class ReaderScanner
         ct: ct));
     }
 
+    WsDiscoveryProbe? wsd = null;
+    if (Options.EnableWsDiscovery)
+    {
+      wsd = new WsDiscoveryProbe(log);
+      discovery.Add(wsd.ProbeAsync(nics, Options.WsDiscoveryDuration,
+        onFound: match =>
+        {
+          var candidate = CandidateFor(match.Sender, DiscoverySources.WsDiscovery);
+          candidate.SetWsDiscovery(match.HostFromXAddrs);
+          Enqueue(candidate);
+        },
+        ct: ct));
+    }
+
     if (Options.EnablePortSweep && hosts.Count > 0)
     {
       progress?.Report(new ScanProgress(ScanPhase.PortSweep, 0, hosts.Count, 0, "sweeping", null));
@@ -131,6 +146,7 @@ public sealed class ReaderScanner
 
     await prober.ConfigureAwait(false);
     if (mdns is not null) warnings.AddRange(mdns.Warnings);
+    if (wsd is not null) warnings.AddRange(wsd.Warnings);
 
     // A candidate may have gained evidence after it was classified (e.g. an
     // advertisement that arrived late), so classify everything once more.
