@@ -39,9 +39,9 @@ jobs:
           Copy-Item dist/cli/readerdetect.exe release/
           Copy-Item dist/gui/readerdetect-gui.exe release/
           Compress-Archive -Path release/* -DestinationPath "release/readerdetect-$env:VERSION-win-x64.zip"
-          Get-ChildItem release | Get-FileHash -Algorithm SHA256 |
-            ForEach-Object { "$($_.Hash.ToLower())  $(Split-Path $_.Path -Leaf)" } |
-            Out-File -Encoding ascii release/SHA256SUMS.txt
+          $files = @("release/readerdetect.exe", "release/readerdetect-gui.exe", "release/readerdetect-$env:VERSION-win-x64.zip")
+          $sums = $files | ForEach-Object { $h = Get-FileHash $_ -Algorithm SHA256; "$($h.Hash.ToLower())  $(Split-Path $_ -Leaf)" }
+          Set-Content -Path release/SHA256SUMS.txt -Value $sums -Encoding ascii
           Get-Content release/SHA256SUMS.txt
 
       - name: Create GitHub release
