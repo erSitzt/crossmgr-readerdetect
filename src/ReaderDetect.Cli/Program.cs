@@ -10,7 +10,7 @@ namespace ReaderDetect.Cli;
 /// </summary>
 internal static class Program
 {
-  private static readonly string[] ValueOptions =
+  internal static readonly string[] ValueOptions =
     ["--interface", "--subnet", "--timeout-ms", "--max-hosts", "--vendor", "--user", "--password", "--address", "--mask", "--gateway", "--dns", "--hostname"];
 
   private static int Main(string[] args)
@@ -26,6 +26,7 @@ internal static class Program
         "scan" => Scan(args),
         "interfaces" => Interfaces(args),
         "probe" => Probe(args),
+        "config" => ConfigCommands.Run(args),
         _ when args[0].StartsWith("--", StringComparison.Ordinal) => Scan(args),
         _ => Unknown(args[0]),
       };
@@ -49,7 +50,7 @@ internal static class Program
     return Usage(2);
   }
 
-  private static ScanOptions OptionsFrom(string[] args, out List<string> problems)
+  internal static ScanOptions OptionsFrom(string[] args, out List<string> problems)
   {
     problems = [];
     var verbose = Args.Flag(args, "--verbose");
@@ -225,9 +226,19 @@ internal static class Program
                      [--include-virtual] [--timeout-ms <n>] [--max-hosts <n>] [--json] [--verbose]
         readerdetect interfaces [--include-virtual] [--json]
         readerdetect probe <ip> [--json] [--verbose]
+        readerdetect config show   <ip> [--vendor impinj|zebra] [--user <u>] [--password <p>] [--json]
+        readerdetect config dhcp   <ip> [--hostname <h>] [--yes] [--no-wait] [--dry-run] [credential options]
+        readerdetect config static <ip> --address <ip> --mask <mask> [--gateway <ip>] [--dns <ip,ip>] [--hostname <h>]
+                                        [--yes] [--no-wait] [--dry-run] [credential options]
+        readerdetect config reboot <ip> [--yes] [credential options]
         readerdetect help
 
-      exit codes: 0 reader(s) found, 1 none found, 2 usage or error
+      credentials default to the vendor's factory login (Impinj root/impinj, Zebra admin/change);
+      READERDETECT_PASSWORD in the environment overrides the password without putting it on the command line.
+
+      exit codes: scan/probe 0 reader(s) found, 1 none found, 2 usage or error
+                  config     0 applied and reader seen again, 3 applied but not seen yet, 4 login rejected,
+                             5 unsupported reader or login throttled, 2 usage or error
       """);
     return code;
   }
