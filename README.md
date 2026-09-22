@@ -164,3 +164,7 @@ Add this repository as a git submodule and a `ProjectReference` to
 if you want the setup dialog). `ReaderScanner.ScanAsync` streams results
 through `IProgress<ScanProgress>`, so a WinForms grid can fill while the sweep
 is still running — `src/ReaderDetect.Gui/MainForm.cs` shows the pattern.
+
+## License
+
+MIT, see `LICENSE`.
