@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Net;
 using System.Threading.Channels;
 using ReaderDetect.Llrp;
+using ReaderDetect.Mdns;
 using ReaderDetect.Network;
 using ReaderDetect.Scanning;
 using ReaderDetect.Vendors;
@@ -86,6 +87,23 @@ public sealed class ReaderScanner
       }), ct);
 
     var discovery = new List<Task>();
+    MdnsBrowser? mdns = null;
+    if (Options.EnableMdns)
+    {
+      mdns = new MdnsBrowser(log);
+      discovery.Add(mdns.BrowseAsync("_llrp._tcp.local", nics, Options.MdnsDuration,
+        onFound: service =>
+        {
+          foreach (var address in service.Addresses)
+          {
+            var candidate = CandidateFor(address, DiscoverySources.Mdns);
+            candidate.SetMdns(service.Host, service.Txt, null);
+            Enqueue(candidate);
+          }
+        },
+        ct: ct));
+    }
+
     if (Options.EnablePortSweep && hosts.Count > 0)
     {
       progress?.Report(new ScanProgress(ScanPhase.PortSweep, 0, hosts.Count, 0, "sweeping", null));
@@ -112,6 +130,7 @@ public sealed class ReaderScanner
     }
 
     await prober.ConfigureAwait(false);
+    if (mdns is not null) warnings.AddRange(mdns.Warnings);
 
     // A candidate may have gained evidence after it was classified (e.g. an
     // advertisement that arrived late), so classify everything once more.
