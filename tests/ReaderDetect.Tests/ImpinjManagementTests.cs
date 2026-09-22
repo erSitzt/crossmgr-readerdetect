@@ -158,10 +158,38 @@ public class ImpinjManagementTests
   public void PlanListsTheCommandsWithoutConnecting()
   {
     var configurator = new ImpinjConfigurator((_, _, _) => throw new InvalidOperationException("must not connect"));
-    Assert.Equal(["config network ip dynamic"], configurator.Plan(NetworkSettings.ForDhcp()));
+    Assert.Equal(["config network ip dynamic", "reboot (when the reader answers Success-Reboot-Required)"], configurator.Plan(NetworkSettings.ForDhcp()));
     Assert.Equal(
-      ["config network dns add 1.1.1.1", "config network ip static 10.0.0.5 255.255.255.0 10.0.0.1"],
+      ["config network dns add 1.1.1.1", "config network ip static 10.0.0.5 255.255.255.0 10.0.0.1", "reboot (when the reader answers Success-Reboot-Required)"],
       configurator.Plan(NetworkSettings.ForStatic(IPAddress.Parse("10.0.0.5"), IPAddress.Parse("255.255.255.0"), IPAddress.Parse("10.0.0.1"), [IPAddress.Parse("1.1.1.1")])));
+  }
+
+  [Fact]
+  public async Task RebootRequiredStatusTriggersARebootAndIsApplied()
+  {
+    // Octane 7.6.3 on the R220 answers exactly this to an IP change.
+    var session = new FakeRShellSession(c => c.StartsWith("show", StringComparison.Ordinal) ? ShowNetworkSummary
+      : c == "reboot" ? "Status='0,Success'\n" : "Status='14,Success-Reboot-Required'\n");
+    var configurator = new ImpinjConfigurator((_, _, _) => Task.FromResult<IRShellSession>(session));
+    var desired = NetworkSettings.ForStatic(IPAddress.Parse("192.168.68.200"), IPAddress.Parse("255.255.255.0"), IPAddress.Parse("192.168.68.1"));
+
+    var result = await configurator.SetNetworkAsync(Ip, Creds, desired);
+
+    Assert.True(result.Applied);
+    Assert.True(result.RebootRequested);
+    Assert.Equal(IPAddress.Parse("192.168.68.200"), result.ExpectedAddress);
+    Assert.Equal(["show network summary", "config network ip static 192.168.68.200 255.255.255.0 192.168.68.1", "reboot"], session.Commands);
+  }
+
+  [Fact]
+  public async Task RebootDroppingTheConnectionIsStillApplied()
+  {
+    var session = new FakeRShellSession(c => c.StartsWith("show", StringComparison.Ordinal) ? ShowNetworkSummary : "Status='14,Success-Reboot-Required'\n", dropAfterCommand: 3);
+    var configurator = new ImpinjConfigurator((_, _, _) => Task.FromResult<IRShellSession>(session));
+    var result = await configurator.SetNetworkAsync(Ip, Creds, NetworkSettings.ForDhcp());
+    Assert.True(result.Applied);
+    Assert.True(result.RebootRequested);
+    Assert.Contains(result.Log, l => l.Contains("rebooting", StringComparison.Ordinal));
   }
 
   [Fact]

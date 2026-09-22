@@ -4,9 +4,11 @@ using ReaderDetect.Network;
 namespace ReaderDetect.Management.Impinj;
 
 /// <summary>
-/// Network setup for Impinj Speedway readers through RShell. IP changes take
-/// effect the moment the command returns, so the session may die right after
-/// a successful change; that is reported as applied with the connection dropped.
+/// Network setup for Impinj Speedway readers through RShell. Older Octane
+/// applies an IP change immediately (the session dies right after a successful
+/// change; reported as applied with the connection dropped); Octane 7.x answers
+/// <c>14,Success-Reboot-Required</c> and the change only takes effect after the
+/// reboot this class then requests.
 /// </summary>
 public sealed class ImpinjConfigurator : IReaderConfigurator
 {
@@ -53,19 +55,21 @@ public sealed class ImpinjConfigurator : IReaderConfigurator
       commands.Add(RShellCommands.IpStatic(desired.Ip, desired.Mask, desired.Gateway));
     }
 
+    commands.Add(RShellCommands.Reboot + " (when the reader answers Success-Reboot-Required)");
     return commands;
   }
 
   /// <inheritdoc/>
   public async Task<ApplyResult> SetNetworkAsync(IPAddress ip, ReaderCredentials credentials, NetworkSettings desired, CancellationToken ct = default)
   {
-    var commands = Plan(desired);
+    var commands = Plan(desired).Where(c => !c.StartsWith(RShellCommands.Reboot, StringComparison.Ordinal)).ToList();
     var log = new List<string>();
     await using var session = await _open(ip, credentials, ct).ConfigureAwait(false);
 
     var current = await ReadAsync(session, ct).ConfigureAwait(false);
     log.Add($"before: {current.Describe()}");
     var dropped = false;
+    var rebootRequired = false;
     foreach (var command in commands)
     {
       string output;
@@ -83,14 +87,35 @@ public sealed class ImpinjConfigurator : IReaderConfigurator
 
       var response = RShellResponse.Parse(output);
       log.Add($"{command}: {response.StatusCode},{response.StatusText}");
+      if (response.RebootRequired)
+      {
+        rebootRequired = true;
+        continue;
+      }
+
       if (!response.Success)
       {
         throw new ConfigurationException(ConfigurationFailure.CommandFailed, $"'{command}' failed: {response.StatusCode},{response.StatusText}");
       }
     }
 
-    _log?.Invoke($"impinj: applied {desired.Describe()} on {ip}");
-    return new ApplyResult(true, desired.Dhcp ? null : desired.Ip, dropped, false, log);
+    if (rebootRequired && !dropped)
+    {
+      // Without the reboot the reader keeps its old address (and, on 7.6,
+      // answers on both until then), so the change is not done without it.
+      try
+      {
+        var response = RShellResponse.Parse(await session.RunAsync(RShellCommands.Reboot, ct).ConfigureAwait(false));
+        log.Add($"{RShellCommands.Reboot}: {response.StatusCode},{response.StatusText}");
+      }
+      catch (ConfigurationException ex) when (ex.Kind == ConfigurationFailure.ConnectionDropped)
+      {
+        log.Add($"{RShellCommands.Reboot}: connection dropped (rebooting)");
+      }
+    }
+
+    _log?.Invoke($"impinj: applied {desired.Describe()} on {ip}" + (rebootRequired ? " (rebooting)" : ""));
+    return new ApplyResult(true, desired.Dhcp ? null : desired.Ip, dropped, rebootRequired, log);
   }
 
   /// <inheritdoc/>

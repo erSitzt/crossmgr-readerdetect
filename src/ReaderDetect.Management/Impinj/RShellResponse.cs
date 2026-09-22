@@ -11,8 +11,14 @@ namespace ReaderDetect.Management.Impinj;
 /// <param name="Values">The key/value lines in order of appearance.</param>
 public sealed record RShellResponse(int StatusCode, string StatusText, IReadOnlyDictionary<string, string> Values)
 {
+  /// <summary>Status code Octane returns when a change was stored but only takes effect after a reboot.</summary>
+  public const int SuccessRebootRequired = 14;
+
   /// <summary>True for status code 0.</summary>
   public bool Success => StatusCode == 0;
+
+  /// <summary>True for <c>14,Success-Reboot-Required</c>: accepted, pending a reboot.</summary>
+  public bool RebootRequired => StatusCode == SuccessRebootRequired;
 
   /// <summary>Parses the text an RShell command printed.</summary>
   public static RShellResponse Parse(string text)

@@ -23,7 +23,9 @@ public static class ReaderConfigurators
   /// <summary>
   /// Waits for the reader to show up again after a change: at <paramref name="expected"/>
   /// when a static address was set, otherwise anywhere on the scanned subnets
-  /// with the same <paramref name="mac"/>.
+  /// with the same <paramref name="mac"/>. When a reboot was requested the
+  /// reader keeps answering at <paramref name="previous"/> for a few seconds
+  /// first, so the wait starts only once that address has gone quiet.
   /// </summary>
   public static async Task<ReaderInfo?> WaitForReaderAsync(
     IPAddress? expected,
@@ -31,9 +33,21 @@ public static class ReaderConfigurators
     ReaderScanner scanner,
     TimeSpan timeout,
     Action<string>? progress = null,
-    CancellationToken ct = default)
+    CancellationToken ct = default,
+    IPAddress? previous = null,
+    bool rebooting = false)
   {
     var deadline = DateTime.UtcNow + timeout;
+    if (rebooting && previous is not null)
+    {
+      var goneBy = DateTime.UtcNow + TimeSpan.FromSeconds(45);
+      while (DateTime.UtcNow < goneBy && await PortSweeper.IsOpenAsync(previous, scanner.Options.LlrpPort, TimeSpan.FromSeconds(1), ct).ConfigureAwait(false))
+      {
+        progress?.Invoke($"waiting for {previous} to go down for the reboot");
+        await Task.Delay(TimeSpan.FromSeconds(1), ct).ConfigureAwait(false);
+      }
+    }
+
     while (DateTime.UtcNow < deadline)
     {
       ct.ThrowIfCancellationRequested();

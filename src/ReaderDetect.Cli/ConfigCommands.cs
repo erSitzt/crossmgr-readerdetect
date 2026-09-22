@@ -184,7 +184,8 @@ internal static class ConfigCommands
 
     var timeout = TimeSpan.FromSeconds(result.RebootRequested ? 90 : result.ExpectedAddress is null ? 60 : 30);
     var seen = ReaderConfigurators.WaitForReaderAsync(result.ExpectedAddress, info?.Mac, scanner, timeout,
-      progress: message => Console.Error.Write($"\r{message,-60}\r")).GetAwaiter().GetResult();
+      progress: message => Console.Error.Write($"\r{message,-60}\r"),
+      previous: ip, rebooting: result.RebootRequested).GetAwaiter().GetResult();
     Console.Error.Write($"\r{string.Empty,-60}\r");
     if (seen is null)
     {
