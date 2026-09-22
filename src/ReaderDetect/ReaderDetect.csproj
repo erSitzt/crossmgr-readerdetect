@@ -5,6 +5,9 @@
          references this as a project, so nothing Windows-only may live here. -->
     <TargetFramework>net9.0</TargetFramework>
     <RootNamespace>ReaderDetect</RootNamespace>
+    <!-- The CLI executable is called readerdetect; on a case-insensitive file
+         system ReaderDetect.dll and readerdetect.dll are the same file. -->
+    <AssemblyName>ReaderDetect.Core</AssemblyName>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
