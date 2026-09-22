@@ -1,0 +1,55 @@
+name: Release
+
+# Pushing a tag like v1.2.3 builds both Windows executables, stamps them with
+# that version, and publishes a GitHub release with the files attached.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish release
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Version from tag
+        shell: pwsh
+        run: |
+          $v = "${{ github.ref_name }}".TrimStart("v")
+          "VERSION=$v" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - run: dotnet test ReaderDetect.NoGui.slnf -c Release
+
+      - name: Publish executables
+        shell: pwsh
+        run: ./publish.ps1 -Version $env:VERSION
+
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory release | Out-Null
+          Copy-Item dist/cli/readerdetect.exe release/
+          Copy-Item dist/gui/readerdetect-gui.exe release/
+          Compress-Archive -Path release/* -DestinationPath "release/readerdetect-$env:VERSION-win-x64.zip"
+          Get-ChildItem release | Get-FileHash -Algorithm SHA256 |
+            ForEach-Object { "$($_.Hash.ToLower())  $(Split-Path $_.Path -Leaf)" } |
+            Out-File -Encoding ascii release/SHA256SUMS.txt
+          Get-Content release/SHA256SUMS.txt
+
+      - name: Create GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "${{ github.ref_name }}"
+          release/readerdetect.exe release/readerdetect-gui.exe
+          "release/readerdetect-$env:VERSION-win-x64.zip" release/SHA256SUMS.txt
+          --title "readerdetect ${{ github.ref_name }}" --generate-notes

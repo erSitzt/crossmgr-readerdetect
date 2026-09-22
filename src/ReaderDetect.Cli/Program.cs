@@ -17,6 +17,12 @@ internal static class Program
   {
     if (args.Length == 0) return Scan(args);
     if (args[0] is "-h" or "--help" or "help") return Usage(0);
+    if (args[0] is "--version" or "version")
+    {
+      Console.WriteLine(Version());
+      return 0;
+    }
+
     var verbose = Args.Flag(args, "--verbose");
 
     try
@@ -42,6 +48,17 @@ internal static class Program
       if (verbose) Console.Error.WriteLine(ex);
       return 2;
     }
+  }
+
+  /// <summary>The version stamped at publish time (the release tag), without the commit suffix.</summary>
+  private static string Version()
+  {
+    var informational = typeof(Program).Assembly
+      .GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
+      .OfType<System.Reflection.AssemblyInformationalVersionAttribute>()
+      .FirstOrDefault()?.InformationalVersion ?? "unknown";
+    var plus = informational.IndexOf('+');
+    return "readerdetect " + (plus > 0 ? informational[..plus] : informational);
   }
 
   private static int Unknown(string command)
@@ -231,7 +248,7 @@ internal static class Program
         readerdetect config static <ip> --address <ip> --mask <mask> [--gateway <ip>] [--dns <ip,ip>] [--hostname <h>]
                                         [--yes] [--no-wait] [--dry-run] [credential options]
         readerdetect config reboot <ip> [--yes] [credential options]
-        readerdetect help
+        readerdetect help | --version
 
       credentials default to the vendor's factory login (Impinj root/impinj, Zebra admin/change);
       READERDETECT_PASSWORD in the environment overrides the password without putting it on the command line.

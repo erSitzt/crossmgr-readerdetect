@@ -122,6 +122,20 @@ bridge's reconnect attempt fail once if it happens at the same instant.
   at all.
 - The reader's SSH host key is accepted as-is (readers generate their own).
 
+## Releases
+
+Download `readerdetect.exe` and `readerdetect-gui.exe` (or the zip) from the
+repository's Releases page; `SHA256SUMS.txt` lists their checksums. To cut a
+release, push a version tag — the workflow in `.github/workflows/release.yml`
+tests, publishes both executables stamped with that version and attaches them:
+
+```
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+`readerdetect --version` prints the stamped version.
+
 ## Building
 
 .NET 9 SDK (or newer; the projects target `net9.0`). On macOS/Linux use the
